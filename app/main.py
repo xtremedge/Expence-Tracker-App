@@ -109,6 +109,38 @@ def delete_expense(
     db.commit()
     return {"message": "Deleted"}
 
+# Update Expense Solution
+
+@app.put("/expenses/{expense_id}")
+def update_expense(
+    expense_id: int,
+    title: str = None,
+    amount: float = None,
+    category: str = None,
+    merchant: str = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id,
+        Expense.user_id == user.id
+    ).first()
+
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    if title is not None:
+        expense.title = title
+    if amount is not None:
+        expense.amount = amount
+    if category is not None:
+        expense.category = category
+    if merchant is not None:
+        expense.merchant = merchant
+
+    db.commit()
+    return {"message": "Expense updated"}
+
 #  STATISTICS
 
 @app.get("/expenses/stats")
