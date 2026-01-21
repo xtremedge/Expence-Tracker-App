@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, Query
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from models import Base, User, Expense
@@ -30,19 +31,33 @@ def get_current_user(token: str = Header(...), db: Session = Depends(get_db)):
 #  AUTH
 
 @app.post("/register")
-def register(email: str, password: str, db: Session = Depends(get_db)):
+def register(
+    email: EmailStr,
+    password: str = Query(..., min_length=6),
+    db: Session = Depends(get_db)
+):
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=400, detail="Email already exists")
-    user = User(email=email, hashed_password=hash_password(password))
+
+    user = User(
+        email=email,
+        hashed_password=hash_password(password)
+    )
     db.add(user)
     db.commit()
     return {"message": "User registered"}
 
 @app.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
+def login(
+    email: EmailStr,
+    password: str,
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.email == email).first()
+
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
     token = create_access_token(user.id)
     return {"access_token": token}
 
@@ -50,8 +65,8 @@ def login(email: str, password: str, db: Session = Depends(get_db)):
 
 @app.post("/expenses")
 def add_expense(
-    title: str,
-    amount: float,
+    title: str = Query(..., min_length=1),
+    amount: float = Query(..., gt=0),
     category: str = None,
     merchant: str = None,
     db: Session = Depends(get_db),
@@ -114,8 +129,8 @@ def delete_expense(
 @app.put("/expenses/{expense_id}")
 def update_expense(
     expense_id: int,
-    title: str = None,
-    amount: float = None,
+    title: str = Query(None, min_length=1),
+    amount: float = Query(None, gt=0),
     category: str = None,
     merchant: str = None,
     db: Session = Depends(get_db),
@@ -139,7 +154,7 @@ def update_expense(
         expense.merchant = merchant
 
     db.commit()
-    return {"message": "Expense updated"}
+    return {"message": "Expense updated successfully"}
 
 #  STATISTICS
 
